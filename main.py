@@ -45,7 +45,7 @@ model.add(tf.keras.layers.Dense(64, activation="relu"))
 model.add(tf.keras.layers.Dense(2,activation="softmax"))
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-tf.keras.utils.plot_model(model, to_file='tmp/egg.png', show_shapes=True)# Draw model
+tf.keras.utils.plot_model(model, to_file='tmp/NN_visual.png', show_shapes=True)# Draw model
 print(model.summary())
 
 print("Fit model on training data")
