@@ -1,14 +1,11 @@
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
-
-
-
+from matplotlib.animation import FuncAnimation, PillowWriter
 all = pd.read_csv("AUDUSD_20.11_1Y_1H.csv", usecols=[1,2,3,4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]
-from matplotlib.animation import FuncAnimation, PillowWriter
+
 
 matplotlib.style.use('bmh')
 fig = plt.figure()
@@ -18,19 +15,14 @@ ax.set_ylim(0.725,0.75)
 ax.set_xlabel('time')
 ax.set_ylabel('Price')
 ax.set_title('AI-visualization')
-
-#fig.set_size_inches(20, 20)
-#ax.text([0, 0], 'boxed italics text in data coords', style='italic')
-
 short_c = '#D13838'
 long_c = '#63ED7C'
 
+
 def animate(i=30):
-    #ax.annotate(str("egg"), xy=(0, 0))
     if i%10==0:
-        ax.plot([i,i+4],[dt[i][0]-0.001,dt[i][0]-0.001],color="coral",linewidth=1,label="Take Profit",linestyle="dashed")#stoploss
-        ax.plot([i, i + 4], [dt[i][3]+0.001, dt[i][3]+0.001], color="cyan", label="Stop Loss",linewidth=1,linestyle="dashed")  # stoploss
-    #Drawing candles block
+        ax.plot([i,i+4],[dt[i][0]-0.001,dt[i][0]-0.001],color="coral",linewidth=1,linestyle="dashed")
+        ax.plot([i, i + 4], [dt[i][3]+0.001, dt[i][3]+0.001], color="cyan",linewidth=1,linestyle="dashed")
     if dt[i][0]>dt[i][3]:
         ax.plot([i,i], [dt[i][1], dt[i][2]], color=long_c, linewidth=1,)
         ax.plot([i, i], [dt[i][0], dt[i][3]], color=long_c, linewidth=5, )
@@ -38,7 +30,7 @@ def animate(i=30):
         ax.plot([i, i], [dt[i][1], dt[i][2]], color=short_c, linewidth=1, )
         ax.plot([i, i], [dt[i][0], dt[i][3]], color=short_c, linewidth=5, )
 
-anim = FuncAnimation(fig, animate, interval=20000,frames=50)#frames = i values
+anim = FuncAnimation(fig, animate, interval=20000,frames=50)
 anim.save("tmp/movie.gif", writer=PillowWriter(fps=1))
 
 
