@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.animation import FuncAnimation, PillowWriter
-all = pd.read_csv("AUDUSD_20.11_1Y_1H.csv", usecols=[1,2,3,4])
+all = pd.read_csv("AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]
 
@@ -34,7 +34,7 @@ anim = FuncAnimation(fig, animate, interval=20000,frames=50)
 anim.save("tmp/movie.gif", writer=PillowWriter(fps=1))
 
 
-#Hello everyone
+
 
 
 
