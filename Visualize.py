@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.animation import FuncAnimation, PillowWriter
-all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
+"""all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]
 
@@ -31,7 +31,7 @@ def animate(i=30):
         ax.plot([i, i], [dt[i][0], dt[i][3]], color=short_c, linewidth=5, )
 
 anim = FuncAnimation(fig, animate, interval=20000,frames=50)
-anim.save("tmp/movie.gif", writer=PillowWriter(fps=1))
+anim.save("tmp/movie.gif", writer=PillowWriter(fps=1))"""
 
 
 
@@ -67,7 +67,27 @@ def draw_candles(data):
 
 #['Solarize_Light2', '_classic_test_patch', '_mpl-gallery', '_mpl-gallery-nogrid', 'bmh', 'classic', 'dark_background', 'fast', 'fivethirtyeight', 'ggplot', 'grayscale', 'seaborn', 'seaborn-bright', 'seaborn-colorblind', 'seaborn-dark', 'seaborn-dark-palette', 'seaborn-darkgrid', 'seaborn-deep', 'seaborn-muted', 'seaborn-notebook', 'seaborn-paper', 'seaborn-pastel', 'seaborn-poster', 'seaborn-talk', 'seaborn-ticks', 'seaborn-white', 'seaborn-whitegrid', 'tableau-colorblind10']
 
-def draw_dis(data,tp,sl):
+
+def draw_dis(data,id,tp,sl,pred,p_change):
+    matplotlib.style.use('bmh')
+    fig, ax = plt.subplots()
+    ax.axhline(y=tp,color='g',label='Take-Profit',linewidth=1,linestyle='dashed')
+    ax.axhline(y=sl,color='r',label="Stop-Soss",linewidth=1,linestyle='dashed')
+    ax.axhline(y=data[0], color='0',linestyle='dashed',label="Starting price",linewidth=1)
+    ax.plot(data,label="Price move",color="coral")
+    ax.set_title('trade='+str(id)+' || Prediction:'+str(pred)+' || change: '+str(p_change))
+
+    ax.legend()
+
+    fig.savefig('tmp/backtesting_plots/trade{}.png'.format(id))
+
+
+
+
+
+draw_dis([10,1],1,2,3,1,100)
+
+"""def draw_dis(data,tp,sl):
     matplotlib.style.use('bmh')
     fig, ax = plt.subplots()
     ax.axhline(y=tp,color='g',label='Take-Profit',linewidth=1,linestyle='dashed')
@@ -80,3 +100,4 @@ def draw_dis(data,tp,sl):
     ax.add_patch(rect)
     plt.show()
 
+"""
