@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 
 
-data_training="AUD_USD.csv"
-data_testing="AUD_CHF.csv"
+data_training="market_data/AUD_USD.csv"
+data_testing="market_data/AUD_CHF.csv"
 
 #df_numpied = np.array(np.array_split((pd.read_csv("AUDUSD_20.11_1Y_1H.csv", usecols=[1,2,3,4],columns=["Open","High","Low","Close"])).to_numpy(),418))# uses only the middle colums and gets split into subsets of 20 (8360/20 = 418)
 def OneD_data(inputfile):

@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.animation import FuncAnimation, PillowWriter
-all = pd.read_csv("AUD_USD.csv", usecols=[1, 2, 3, 4])
+all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]
 
