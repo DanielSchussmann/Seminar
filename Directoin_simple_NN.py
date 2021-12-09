@@ -40,14 +40,16 @@ history= model.fit(
     # at the end of each epoch
     validation_data=(x_val,y_val))
 
+model.save('Neural_Networks/close_10_32_32_1')
 
 accuracy = lambda x,y: model.evaluate(x_test[x:y],np.array(y_test[x:y]))
 prediction=lambda x,y: np.array(model.predict(x_test[x:y]))
 
 
-
+"""
 print(str(accuracy(100,250)[0]*100)+'%')
 hist_dick=history.history
 plt.title('Loss')
 plt.plot(hist_dick['loss'],color="coral")
 plt.show()
+"""
