@@ -2,7 +2,9 @@ import numpy as np
 import threading
 import json
 from datetime import datetime
-
+import tensorflow as tf
+import math
+import matplotlib.pyplot as plt
 
 order={}
 order['orders']=[]
@@ -28,3 +30,20 @@ def orderToJson(symbol,current_price, top, bot):
 
 
 printit()
+
+x =[0.69814,0.69871,0.69998,0.70062,0.70125,0.70258,0.70362,0.70329,0.70375,0.70434,0.70547,0.70525,0.70525,0.70537,0.70503]
+
+def normalize(inp):
+    A = [i*i for i in inp]
+    v = (sum(A))**(0.5)
+    A = [i / v for i in inp]
+    return A
+x_norm= normalize(x)
+fig, (ax1, ax2) = plt.subplots(2)
+ax1.plot(x,color="purple")
+ax1.set_title('Standard Data', fontsize=9,pad=-14)
+ax2.plot(x_norm,color="cyan")
+ax2.set_title('Normalized Data', fontsize=9,pad=-14)
+plt.show()
+
+

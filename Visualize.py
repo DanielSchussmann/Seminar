@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
 """all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
@@ -68,24 +69,25 @@ def draw_candles(data):
 #['Solarize_Light2', '_classic_test_patch', '_mpl-gallery', '_mpl-gallery-nogrid', 'bmh', 'classic', 'dark_background', 'fast', 'fivethirtyeight', 'ggplot', 'grayscale', 'seaborn', 'seaborn-bright', 'seaborn-colorblind', 'seaborn-dark', 'seaborn-dark-palette', 'seaborn-darkgrid', 'seaborn-deep', 'seaborn-muted', 'seaborn-notebook', 'seaborn-paper', 'seaborn-pastel', 'seaborn-poster', 'seaborn-talk', 'seaborn-ticks', 'seaborn-white', 'seaborn-whitegrid', 'tableau-colorblind10']
 
 
-def draw_dis(data,id,tp,sl,pred,p_change):
+def draw_dis(data,p_1,id,tp,sl,pred):
     matplotlib.style.use('bmh')
     fig, ax = plt.subplots()
+    data = np.insert(data,0,p_1)
     ax.axhline(y=tp,color='g',label='Take-Profit',linewidth=1,linestyle='dashed')
     ax.axhline(y=sl,color='r',label="Stop-Soss",linewidth=1,linestyle='dashed')
-    ax.axhline(y=data[0], color='0',linestyle='dashed',label="Starting price",linewidth=1)
+    ax.axhline(y=p_1, color='0',linestyle='dashed',label="Starting price",linewidth=1)
     ax.plot(data,label="Price move",color="coral")
-    ax.set_title('trade='+str(id)+' || Prediction:'+str(pred)+' || change: '+str(p_change))
+    ax.set_title('trade='+str(id)+' || Prediction:'+str(pred))
 
     ax.legend()
 
-    fig.savefig('tmp/backtesting_plots/trade{}.png'.format(id))
+    fig.savefig('tmp/backtesting_plots/trade{}.svg'.format(id))
 
 
 
 
 
-draw_dis([10,1],1,2,3,1,100)
+draw_dis([10,1],1,1,2,3,1)
 
 """def draw_dis(data,tp,sl):
     matplotlib.style.use('bmh')
