@@ -19,6 +19,7 @@ def BT_directional_1(inputfile,model,portfolio_size,rng):
     nn = tf.keras.models.load_model(model) #the neural network to lead
     history=[]
     portfolio_development = [portfolio]
+
     for j in rng:
         port = portfolio
         A = [i * i for i in data_raw[j]]#denormalization of data
@@ -87,13 +88,13 @@ def BT_directional_1(inputfile,model,portfolio_size,rng):
     return[portfolio_development,profit,np.array(history)]
     #prediction = int(np.array(nn(nn_data))[0][0])  # np.random.randint(2)
 
-egg=BT_directional_1('market_data/AUD_JPY.csv','Neural_Networks/mean_direction',10000,range(0,150))
+egg=BT_directional_1('market_data/AUD_CHF.csv','Neural_Networks/mean_direction',10000,range(0,150))
 
 print(egg[0][-1])
 fig,figr = plt.subplots()
 figr.plot(egg[0])
-figr.set_title('Portfolio development')
-fig.savefig('tmp/backtesting_plots/portfolio')
+figr.set_title('Portfolio development AUD/CHF')
+fig.savefig('tmp/backtesting_plots/portfolio_AUD_CHF.svg')
 
 
 """
