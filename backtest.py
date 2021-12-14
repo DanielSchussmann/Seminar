@@ -1,13 +1,11 @@
 import pandas as pd
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 import tensorflow as tf
 from DataPrep import *
-from Visualize import draw_dis
 import plotly.graph_objects as go
 import math
-import json
+import dash
+import copy
 
 
 class BACKTEST():
@@ -19,6 +17,7 @@ class BACKTEST():
         self.index=0
         self.order_id=1
         self.data=0
+        self.draw_data=0
         self.open_orders=[]
         self.ohlc:np.array #OPENHIGHLOWCLOSE
         self.break_index=15
@@ -33,8 +32,8 @@ class BACKTEST():
         buy_price=self.ohlc[-1]
         #"activating" order
         break_id=0
-        order_id=self.index
-        self.open_orders.append([type,tp,sl,buy_price,order_id,break_id])
+        exe_id=self.index
+        self.open_orders.append([type,tp,sl,buy_price,exe_id,break_id])
 
 
     def _TrackOrders(self):
@@ -51,102 +50,103 @@ class BACKTEST():
                 if tp <= self.ohlc[1]:# if tp is smaller than high
                     self.portfolio+=abs(tp-buy_price)*self.order_size*self.leverage
                     self.open_orders.pop(j) #close order
-                    self.analytics.append([id,self.index,type+'/TP',str(self.ohlc),tp,sl,self.portfolio])
+                    self.analytics.append([id,self.index,type+'/TP',buy_price,tp,sl,self.portfolio])
                     break
                 elif sl>=self.ohlc[2]:# if sl is greater than low
                     self.portfolio -= abs(sl - buy_price) * self.order_size * self.leverage
                     self.open_orders.pop(j)
-                    self.analytics.append([id,self.index,type+'/SL',str(self.ohlc),tp,sl,self.portfolio])
+                    self.analytics.append([id,self.index,type+'/SL',buy_price,tp,sl,self.portfolio])
                     break #break the loop to stop index from becoming out of range
                 elif self.open_orders[j][5]==self.break_index: #break order after 10 ticks
                     self.portfolio += (self.ohlc[3] - buy_price) * self.order_size * self.leverage
                     self.open_orders.pop(j)
-                    self.analytics.append([id,self.index,type+'TIMED_OUT', str(self.ohlc), tp, sl, self.portfolio])
+                    self.analytics.append([id,self.index,type+'TIMED_OUT',buy_price, tp, sl, self.portfolio])
                     break
 
             elif type=='SELL':
                 if tp >= self.ohlc[2]:  # if tp is greater than low
                     self.portfolio += abs(tp - buy_price) * self.order_size * self.leverage
                     self.open_orders.pop(j)  # close order
-                    self.analytics.append([id,self.index,type+'/TP',str(self.ohlc),tp,sl,self.portfolio])
+                    self.analytics.append([id,self.index,type+'/TP',buy_price,tp,sl,self.portfolio])
                     break
                 elif sl <= self.ohlc[1]:  # if sl is smaller than high
                     self.portfolio -= abs(sl - buy_price) * self.order_size * self.leverage
                     self.open_orders.pop(j)
-                    self.analytics.append([id,self.index,type+'/SL',str(self.ohlc),tp,sl,self.portfolio])
+                    self.analytics.append([id,self.index,type+'/SL',buy_price,tp,sl,self.portfolio])
                     break
                 elif self.open_orders[j][5]==self.break_index: #break order after 10 ticks
                     self.portfolio += (buy_price-self.ohlc[3]) * self.order_size * self.leverage
                     self.open_orders.pop(j)
-                    self.analytics.append([id,self.index,type+'TIMED_OUT', str(self.ohlc), tp, sl, self.portfolio])
+                    self.analytics.append([id,self.index,type+'TIMED_OUT', buy_price, tp, sl, self.portfolio])
                     break
             self.open_orders[j][5]+=1
 
     def visiulaize(self):
-        fig = go.Figure(data=[go.Candlestick(
-            open=self.data['Open'][:self.index],
-            high=self.data['High'][:self.index],
-            low=self.data['Low'][:self.index],
-            close=self.data['Close'][:self.index], name='price')])
-        count=1
+        app = dash.Dash(__name__)
+        fig_1 = go.Figure(data=[go.Candlestick(
+            open=self.draw_data['Open'][0:self.index],
+            high=self.draw_data['High'][0:self.index],
+            low=self.draw_data['Low'][0:self.index],
+            close=self.draw_data['Close'][0:self.index], name='price')],layout_title_text='Full Trade overview')
+
+        portfolio = np.transpose(self.analytics)[-1].astype('float32')
+        fig_2 = go.Figure(data=[go.Scatter(x=np.arange(0, len(portfolio)), y=portfolio,)],layout_title_text='Portfolio Evolution')
         #fig.add_trace(go.Scatter(
         #    x=np.arange(0, len(close)), y=close, line=dict(color='blue', width=2), name='order'))
-        for j in range(0,self.index):
+        for j in range(0,len(self.analytics)):
+            orders=self.analytics[j]
+            start=orders[0]
+            end=orders[1]
+            o_type=orders[2]
+            buy_price=orders[3]
+            tp=orders[4]
+            sl=orders[5]
 
-            fig.add_shape(type="rect",
+
+            fig_1 .add_shape(type="rect", #POSITIVE RANGE
                       xref="x", yref="y",
-                      x0=self.analytics[j][0], y0=self.analytics[j][4],
-                      x1=self.analytics[j][1], y1=self.analytics[j][5],
-                      line=dict(color="RoyalBlue", width=1),
-                      fillcolor="LightSkyBlue",
-                      opacity=0.5)
-            fig.add_trace(go.Scatter(
-            x=[np.mean(self.analytics[j][0:1])],
-            y=[self.analytics[j][1] + 0.002],
-            text=["order_{}".format(count)],
-            mode="text"))
-            count+=1
-        fig.show()
+                      x0=start, y0=tp if o_type[0:3]=='BUY' else buy_price, # To minimize code length
+                      x1=end, y1=buy_price if o_type[0:3]=='BUY' else tp,
+                      line=dict(color="#22754B", width=1),
+                      fillcolor="#63ED7C",
+                      opacity=0.3)
+            fig_1 .add_shape(type="rect", #NEGATIVE RANGE
+                          xref="x", yref="y",
+                          x0=start, y0=sl if o_type[0:3]=='BUY' else buy_price,
+                          x1=end, y1=buy_price if o_type[0:3]=='BUY' else sl,
+                          line=dict(color="#752222", width=1),
+                          fillcolor="#ED6363",
+                          opacity=0.3)
+            fig_1 .add_shape(type="line",
+                          xref="x", yref="y",
+                          x0=start, y0=buy_price,
+                          x1=end, y1=buy_price,
+                          line=dict(color="#752222", width=1,dash="dashdot"),)
+        app.layout = dash.html.Div(children=[
+            dash.html.H1(children='Backtesting summary'),
 
+            dash.html.Div(children='''
+                A summary of the backtesting process.
+            '''),
+            dash.dcc.Graph(id='Full order overview',
+                      figure=fig_1 ),
 
+        dash.dcc.Graph(id='Portfolio development',
+                       figure=fig_2),
+        ])
 
-        """viz_data = np.transpose(self.analytics)
-        o_type, count = np.unique(viz_data[2], return_counts=True)
-        portfolio = viz_data[-1].astype('float32')
-        print(max(portfolio))
-        fig, axs = plt.subplots(2, 2)
-        fig.set_figheight(10)
-        fig.set_figwidth(20)
-        axs[0, 0].plot(viz_data[-1].astype('float32'))
-        axs[0, 0].set_title('Portfolio')
-        axs[0, 1].bar(o_type, count, color='coral')
-        # axs[0, 1].bar(o_type,count, bottom=o_tpye[:1], color='y')
-        axs[0, 1].set_title('Order_count')
-        axs[1, 0].bar(['High/low', 'average'], [max(portfolio), np.mean(portfolio)], color='purple')
-        #axs[1, 0].bar(['High/low', 'average'], [min(portfolio)], bottom=color = 'purple')
-        axs[1, 0].set_title('Extrem')
-        #axs[1, 1].plot(self.data[0:self.index], 'tab:red')
-        axs[1, 1].set_title('Axis [1, 1]')
-        i=0
-        j=0
-        while i< self.index:
-            if self.data[j][0]>self.data[j][3]:
-                axs[1, 1].plot([i,i],[self.data[j][1], self.data[j][2]], color='red', linewidth=1,) #wick
-                axs[1, 1].plot([i,i],[self.data[j][0], self.data[j][3]], color='red', linewidth=5,) #body
-            else:
-                axs[1, 1].plot([i, i], [self.data[j][1], self.data[j][2]], color='green', linewidth=1, )  # wick
-                axs[1, 1].plot([i, i], [self.data[j][0], self.data[j][3]], color='green', linewidth=5, )  # body
-            i+=1
-            j+=1
-        plt.show()"""
+        if __name__ == '__main__':
+            app.run_server(debug=True)
+
 
 
 
 nn=BACKTEST()
-nn.data=np.array(pd.read_csv('market_data/AUD_USD.csv',usecols=[1,2,3,4]))
+nn.data=np.array(pd.read_csv('market_data/AUD_CHF.csv',usecols=[1,2,3,4]))
 nn.tick()
 nn.leverage=500
-for i in range(0,50):
+nn.break_index=5
+for j in range(0,10):
     gathered_data=[]
     look=[]
     for i in range(0,10):
@@ -166,23 +166,23 @@ for i in range(0,50):
 
     richt_preis=nn.ohlc[3]
 
-    risk=(prediction*nn.order_size*(max(gathered_data)/min(gathered_data)))/(nn.portfolio*100)
+    risk=10*(prediction*nn.order_size*(max(gathered_data)/min(gathered_data)))/(nn.portfolio*100)
 
     if richt_preis< prediction:
         tp = richt_preis * (1 + risk)
-        sl = richt_preis * (1 - risk)
+        sl = richt_preis * (1 - risk/2)
         nn.MakeOrder('BUY',tp,sl)
     elif richt_preis>prediction:
         tp = richt_preis * (1 - risk)
-        sl = richt_preis * (1 + risk)
-        nn.MakeOrder('SELL',tp,sl )
+        sl = richt_preis * (1 + risk/2)
+        nn.MakeOrder('SELL',tp,sl)
 
 
 print(nn.portfolio)
 #print(np.transpose(nn.analytics)) #groups up all the vaules for evaluation
 for i in range(0,len(nn.analytics)):
     print(nn.analytics[i])
-
+nn.draw_data=pd.read_csv('market_data/AUD_CHF.csv',usecols=[1,2,3,4])
 nn.visiulaize()
 
 

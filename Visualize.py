@@ -1,3 +1,4 @@
+import dash as dash
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
@@ -5,22 +6,75 @@ import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
 import plotly.graph_objects as go
 import plotly.express as px
+import dash
+from dash import dcc
+from dash import html
+from dash.dependencies import Input, Output
 
+"""
 googf=pd.read_csv('market_data/AUD_CHF.csv')
-close=googf['Close']
-print(close[0])
-fig = go.Figure(data=[go.Candlestick(
-        open=googf['Open'],
-        high=googf['High'],
-        low=googf['Low'],
-        close=googf['Close'],name='ass'),go.Scatter(
-        x=[0, 1, 2, 3, 4, 5],
-        y=[1.5, 1, 1.3, 0.7, 0.8, 0.9]
-    )])
+app = dash.Dash(__name__)
 
-fig.show()
-x = np.arange(0,len(close))
-print(x)
+fig = go.Figure(data=[go.Candlestick(
+    open=googf['Open'],
+    high=googf['High'],
+    low=googf['Low'],
+    close=googf['Close'], name='ass')])
+
+
+
+
+app.layout = html.Div(children=[
+    html.H1(children='Backtesting summary'),
+
+    html.Div(children='''
+        A summary of the backtesting process.
+    '''),
+   dcc.Graph(id='example-graph',
+        figure=fig)])
+
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
+
+
+close=googf['Close']
+print(close[0])"""
+"""
+app = dash.Dash(__name__)
+
+app.layout = html.Div([
+    html.P("Color:"),
+    dcc.Dropdown(
+        id="dropdown",
+        options=[
+            {'label': x, 'value': x}
+            for x in ['Gold', 'MediumTurquoise', 'LightGreen']
+        ],
+        value='Gold',
+        clearable=False,
+    ),
+    dcc.Graph(id="graph"),
+])
+
+@app.callback(
+    Output("graph", "figure"),
+    [Input("dropdown", "value")])
+def display_color(color):
+    fig = go.Figure(
+        data=go.Bar(y=[2, 3, 1], marker_color=color))
+    return fig
+
+
+
+app.run_server(debug=True)
+"""
+
+
+
+
+
 """all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]
