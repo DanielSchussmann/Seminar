@@ -5,169 +5,185 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from DataPrep import *
 from Visualize import draw_dis
+import plotly.graph_objects as go
 import math
 import json
 
 
-def BT_directional_1(inputfile,model,portfolio_size,rng):
-    portfolio = portfolio_size
-    data=mean_movement(inputfile,[4])[2]
-    data_raw=mean_movement(inputfile,[4])[3]
-    leverage=300
-    order_size=20*300#<-leverage
+class BACKTEST():
+    def __init__(self): #Innitializing all the required variables
+        self.analytics=[]
+        self.portfolio = 10000
+        self.order_size=200
+        self.leverage=50
+        self.index=0
+        self.order_id=1
+        self.data=0
+        self.open_orders=[]
+        self.ohlc:np.array #OPENHIGHLOWCLOSE
+        self.break_index=15
 
-    nn = tf.keras.models.load_model(model) #the neural network to lead
-    history=[]
-    portfolio_development = [portfolio]
+    def tick(self): #tick reffers to receiving a new candle from the market
+        if len(self.open_orders) >= 1:
+            self._TrackOrders()
+        self.index+=1
+        self.ohlc=self.data[self.index]
 
-    for j in rng:
-        port = portfolio
-        A = [i * i for i in data_raw[j]]#denormalization of data
-        deNorm = (sum(A)) ** (0.5)#denormalization of data
+    def MakeOrder(self,type,tp,sl):
+        buy_price=self.ohlc[-1]
+        #"activating" order
+        break_id=0
+        order_id=self.index
+        self.open_orders.append([type,tp,sl,buy_price,order_id,break_id])
 
-        #print(data_raw[j][0],data[j][0]*deNorm) -----> showcase normalization
-        pre_batch = data[j]
-        post_batch=data_raw[j+1]
-        prediction=np.array(nn(data[j:j+1]))[0][0]
-        pre_1 = pre_batch[-1]#last price from pre eavl batch
-        risk_fctr=(prediction*deNorm*order_size*(max(pre_batch)/min(post_batch)))/(portfolio_size*100)
 
-        if pre_1 < prediction:#------------->BUY
+    def _TrackOrders(self):
+        for j in range(len(self.open_orders)):
+            current_order=self.open_orders[j]
+            type=current_order[0]
+            tp=current_order[1]
+            sl=current_order[2]
+            buy_price=current_order[3]
+            id=current_order[4]
 
-            tp = pre_1 * deNorm * (1+risk_fctr)
-            sl = pre_1 * deNorm * (1-risk_fctr)
-
-            pre_1 = pre_1 * deNorm
-            prediction = prediction * deNorm
-
-            for i in range(1, len(post_batch)):  # go through values and check if they intersect with tp or sl
-                if post_batch[i] >= tp:
-                    portfolio += (tp - pre_1) * order_size
-                    history.append([j,'BUY/TP',pre_1,tp,sl,(tp - pre_1) * order_size])
-                    portfolio_development.append(portfolio)
-                    break  # the break emulates the order being sold
-                elif post_batch[i] <= sl:
-                    portfolio += (sl - pre_1) * order_size
-                    history.append([j,'BUY/SL',pre_1,tp,sl,(sl - pre_1) * order_size])
-                    portfolio_development.append(portfolio)
+            if type=='BUY':
+                #Check wether or not the order is closed by tp or sl
+                if tp <= self.ohlc[1]:# if tp is smaller than high
+                    self.portfolio+=abs(tp-buy_price)*self.order_size*self.leverage
+                    self.open_orders.pop(j) #close order
+                    self.analytics.append([id,self.index,type+'/TP',str(self.ohlc),tp,sl,self.portfolio])
                     break
-            if port == portfolio:
-                portfolio += (post_batch[-1]-pre_1) * order_size
-                history.append([j, 'BUY/NA', post_batch[-1], tp, sl, (post_batch[-1]-pre_1) * order_size])
-                portfolio_development.append(portfolio)
-            #draw_dis(post_batch, pre_1, j, tp, sl, 'BUY')
-
-
-        elif pre_1>prediction:#------------->SELL
-
-            tp = pre_1 * deNorm * (1 - risk_fctr)
-            sl = pre_1 * deNorm * (1 + risk_fctr)
-
-            pre_1 = pre_1 * deNorm
-            prediction = prediction * deNorm
-            for i in range(1, len(post_batch)):
-                if post_batch[i] <= tp: #profit Trigger
-                    portfolio += (pre_1-tp) * order_size
-                    history.append([j,'SELL/TP',pre_1,tp,sl,(pre_1-tp) * order_size])
-                    portfolio_development.append(portfolio)
+                elif sl>=self.ohlc[2]:# if sl is greater than low
+                    self.portfolio -= abs(sl - buy_price) * self.order_size * self.leverage
+                    self.open_orders.pop(j)
+                    self.analytics.append([id,self.index,type+'/SL',str(self.ohlc),tp,sl,self.portfolio])
+                    break #break the loop to stop index from becoming out of range
+                elif self.open_orders[j][5]==self.break_index: #break order after 10 ticks
+                    self.portfolio += (self.ohlc[3] - buy_price) * self.order_size * self.leverage
+                    self.open_orders.pop(j)
+                    self.analytics.append([id,self.index,type+'TIMED_OUT', str(self.ohlc), tp, sl, self.portfolio])
                     break
-                elif post_batch[i] >= sl:
-                    portfolio += (pre_1-sl) * order_size
-                    history.append([j, 'SELL/SL', pre_1, tp, sl, (pre_1-sl) * order_size])
-                    portfolio_development.append(portfolio)
+
+            elif type=='SELL':
+                if tp >= self.ohlc[2]:  # if tp is greater than low
+                    self.portfolio += abs(tp - buy_price) * self.order_size * self.leverage
+                    self.open_orders.pop(j)  # close order
+                    self.analytics.append([id,self.index,type+'/TP',str(self.ohlc),tp,sl,self.portfolio])
                     break
-            if port == portfolio:
-                portfolio += (pre_1-post_batch[-1]) * order_size
-                history.append([j, 'SELL/NA', post_batch[-1], tp, sl, (pre_1-post_batch[-1]) * order_size])
-                portfolio_development.append(portfolio)
-            #draw_dis(post_batch,pre_1, j, tp, sl, 'SELL')
-        else: #------------->NOTHING HAPPEND
-            history.append(["bullshiiiiit"])
+                elif sl <= self.ohlc[1]:  # if sl is smaller than high
+                    self.portfolio -= abs(sl - buy_price) * self.order_size * self.leverage
+                    self.open_orders.pop(j)
+                    self.analytics.append([id,self.index,type+'/SL',str(self.ohlc),tp,sl,self.portfolio])
+                    break
+                elif self.open_orders[j][5]==self.break_index: #break order after 10 ticks
+                    self.portfolio += (buy_price-self.ohlc[3]) * self.order_size * self.leverage
+                    self.open_orders.pop(j)
+                    self.analytics.append([id,self.index,type+'TIMED_OUT', str(self.ohlc), tp, sl, self.portfolio])
+                    break
+            self.open_orders[j][5]+=1
 
-    profit=portfolio-portfolio_size
-    return[portfolio_development,profit,np.array(history)]
-    #prediction = int(np.array(nn(nn_data))[0][0])  # np.random.randint(2)
+    def visiulaize(self):
+        fig = go.Figure(data=[go.Candlestick(
+            open=self.data['Open'][:self.index],
+            high=self.data['High'][:self.index],
+            low=self.data['Low'][:self.index],
+            close=self.data['Close'][:self.index], name='price')])
+        count=1
+        #fig.add_trace(go.Scatter(
+        #    x=np.arange(0, len(close)), y=close, line=dict(color='blue', width=2), name='order'))
+        for j in range(0,self.index):
 
-egg=BT_directional_1('market_data/AUD_CHF.csv','Neural_Networks/mean_direction',10000,range(0,150))
-
-print(egg[0][-1])
-fig,figr = plt.subplots()
-figr.plot(egg[0])
-figr.set_title('Portfolio development AUD/CHF')
-fig.savefig('tmp/backtesting_plots/portfolio_AUD_CHF.svg')
-
-
-"""
-#up_down prediction backtesting suit.
-for j in range(0,40):
-    current_batch=data[j]
-    nn_data=data[j:j+1]
-    price_zero= current_batch[0]
-    port = portfolio
-    prediction=int(np.array(nn(nn_data))[0][0])#np.random.randint(2)
-
-
-    if prediction==0: #sell order
-        tp = price_zero*(1-account_risk)
-        sl = price_zero*(1+account_risk*0.5)
-        for i in range(1,len(current_batch)): #go through values and check if they intersect with tp or sl
-            if current_batch[i]<=tp:
-                portfolio+= (tp-current_batch[0]) * order_size
-                fail_checking.append([j,0,'tp'])
-                break # the break emulates the order being sold
-
-            if current_batch[i]>=sl:
-                portfolio -= (current_batch[0]-sl) * order_size
-                fail_checking.append([j, 0, 'sl'])
-                break
-        if port == portfolio:
-            portfolio+=(current_batch[0]-current_batch[-1])* order_size
-        draw_dis(current_batch, j, tp, sl, prediction, (-port + portfolio))
+            fig.add_shape(type="rect",
+                      xref="x", yref="y",
+                      x0=self.analytics[j][0], y0=self.analytics[j][4],
+                      x1=self.analytics[j][1], y1=self.analytics[j][5],
+                      line=dict(color="RoyalBlue", width=1),
+                      fillcolor="LightSkyBlue",
+                      opacity=0.5)
+            fig.add_trace(go.Scatter(
+            x=[np.mean(self.analytics[j][0:1])],
+            y=[self.analytics[j][1] + 0.002],
+            text=["order_{}".format(count)],
+            mode="text"))
+            count+=1
+        fig.show()
 
 
 
-    else: #buy order
-        tp = price_zero*(1+account_risk)
-        sl = price_zero*(1-account_risk*0.5)
-        for i in range(1,len(current_batch)):
-            if current_batch[i]>=tp:
-                portfolio+= (tp-current_batch[0]) * order_size
-                fail_checking.append([j, 1, 'tp'])
-                break
-            if current_batch[i]<=sl:
-                portfolio-= (current_batch[0]-sl) * order_size
-                fail_checking.append([j, 1, 'sl'])
-                break
-        if port == portfolio:
-            portfolio+=(current_batch[-1]-current_batch[0])* order_size
-        draw_dis(current_batch,j, tp, sl,prediction,(-port+portfolio))
+        """viz_data = np.transpose(self.analytics)
+        o_type, count = np.unique(viz_data[2], return_counts=True)
+        portfolio = viz_data[-1].astype('float32')
+        print(max(portfolio))
+        fig, axs = plt.subplots(2, 2)
+        fig.set_figheight(10)
+        fig.set_figwidth(20)
+        axs[0, 0].plot(viz_data[-1].astype('float32'))
+        axs[0, 0].set_title('Portfolio')
+        axs[0, 1].bar(o_type, count, color='coral')
+        # axs[0, 1].bar(o_type,count, bottom=o_tpye[:1], color='y')
+        axs[0, 1].set_title('Order_count')
+        axs[1, 0].bar(['High/low', 'average'], [max(portfolio), np.mean(portfolio)], color='purple')
+        #axs[1, 0].bar(['High/low', 'average'], [min(portfolio)], bottom=color = 'purple')
+        axs[1, 0].set_title('Extrem')
+        #axs[1, 1].plot(self.data[0:self.index], 'tab:red')
+        axs[1, 1].set_title('Axis [1, 1]')
+        i=0
+        j=0
+        while i< self.index:
+            if self.data[j][0]>self.data[j][3]:
+                axs[1, 1].plot([i,i],[self.data[j][1], self.data[j][2]], color='red', linewidth=1,) #wick
+                axs[1, 1].plot([i,i],[self.data[j][0], self.data[j][3]], color='red', linewidth=5,) #body
+            else:
+                axs[1, 1].plot([i, i], [self.data[j][1], self.data[j][2]], color='green', linewidth=1, )  # wick
+                axs[1, 1].plot([i, i], [self.data[j][0], self.data[j][3]], color='green', linewidth=5, )  # body
+            i+=1
+            j+=1
+        plt.show()"""
 
 
 
+nn=BACKTEST()
+nn.data=np.array(pd.read_csv('market_data/AUD_USD.csv',usecols=[1,2,3,4]))
+nn.tick()
+nn.leverage=500
+for i in range(0,50):
+    gathered_data=[]
+    look=[]
+    for i in range(0,10):
+        gathered_data.append(nn.ohlc[3])
+        nn.tick()
 
 
+    normalized_data = normalize(gathered_data)
+    prediction_data=[normalized_data,normalized_data]
 
-print(fail_checking)
+    A = [i * i for i in gathered_data]  # denormalization of data
+    deNorm = (sum(A)) ** (0.5)  # denormalization of data
 
-
-print(p_start,portfolio)
-
-
-
-#draw_dis(data[look],tp_buy,sl_buy)
-
-history['orders'].append({
-                        'Index': j,
-                        'Type': 'SELL',
-                        'Price': pre_1,
-                        'Trigger': 'Stop Loss',
-                        'loss': (sl-pre_1) * order_size})
-"""
+    pred = tf.keras.models.load_model('Neural_Networks/mean_direction')
+    prediction=np.array(pred(np.array(prediction_data[0:1])))[0][0]*deNorm
 
 
+    richt_preis=nn.ohlc[3]
+
+    risk=(prediction*nn.order_size*(max(gathered_data)/min(gathered_data)))/(nn.portfolio*100)
+
+    if richt_preis< prediction:
+        tp = richt_preis * (1 + risk)
+        sl = richt_preis * (1 - risk)
+        nn.MakeOrder('BUY',tp,sl)
+    elif richt_preis>prediction:
+        tp = richt_preis * (1 - risk)
+        sl = richt_preis * (1 + risk)
+        nn.MakeOrder('SELL',tp,sl )
 
 
+print(nn.portfolio)
+#print(np.transpose(nn.analytics)) #groups up all the vaules for evaluation
+for i in range(0,len(nn.analytics)):
+    print(nn.analytics[i])
 
+nn.visiulaize()
 
 
 

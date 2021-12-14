@@ -3,6 +3,24 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
+import plotly.graph_objects as go
+import plotly.express as px
+
+googf=pd.read_csv('market_data/AUD_CHF.csv')
+close=googf['Close']
+print(close[0])
+fig = go.Figure(data=[go.Candlestick(
+        open=googf['Open'],
+        high=googf['High'],
+        low=googf['Low'],
+        close=googf['Close'],name='ass'),go.Scatter(
+        x=[0, 1, 2, 3, 4, 5],
+        y=[1.5, 1, 1.3, 0.7, 0.8, 0.9]
+    )])
+
+fig.show()
+x = np.arange(0,len(close))
+print(x)
 """all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]

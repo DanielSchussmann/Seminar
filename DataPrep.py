@@ -49,6 +49,46 @@ def normalize(inp):
     v = (sum(A))**(0.5)
     A = [i / v for i in inp]
     return A
+def relationfy(x):
+    output = []
+    no_order=[]
+    #viz=[]
+    for j in range(len(x)-1):
+        temp=[]
+        #color=(np.random.random(), np.random.random(), np.random.random())
+        for i in range(j+1,len(x)):
+            temp.append(x[j]/x[i])
+            no_order.append(x[j]/x[i])
+            #viz.append([[j,i],[x[j],x[i]]])
+        output.append(temp)
+    return [output,normalize(no_order)]
+
+
+def mean_mvmnt(inputfile,columns):
+    data = pd.read_csv(inputfile, usecols=columns)
+    df = data.copy()
+
+    df = np.array(np.array_split(df, int(len(df) / 10))).reshape([int(len(df) / 10), 10])  # testing examples
+
+    x_norm = []
+    for i in range(0, len(df[::2])):
+        x_norm.append(relationfy(df[::2][i])[1])
+
+    y_norm = []
+    for i in range(0, len(df[1::2])):
+        y_norm.append(np.mean(normalize(df[1::2][i])))
+
+    return [x_norm, y_norm, df]
+
+print(mean_mvmnt('market_data/AUD_CHF.csv',[4])[0][0:10])
+
+
+
+
+
+
+
+
 
 def mean_movement(inputfile,columns):
     data = pd.read_csv(inputfile, usecols=columns)
@@ -68,7 +108,7 @@ def mean_movement(inputfile,columns):
 
 
 
-print(mean_movement('market_data/AUD_CHF.csv',[4]))
+#print(mean_movement('market_data/AUD_CHF.csv',[4]))
 
 
 
