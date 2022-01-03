@@ -1,9 +1,8 @@
 import dash as dash
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib
+
 import numpy as np
-from matplotlib.animation import FuncAnimation, PillowWriter
+
 import plotly.graph_objects as go
 import plotly.express as px
 import dash
@@ -78,7 +77,7 @@ app.run_server(debug=True)
 """all = pd.read_csv("market_data/AUD_USD.csv", usecols=[1, 2, 3, 4])
 dt= all.to_numpy().copy()
 dt =dt[50:-1]
-
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 matplotlib.style.use('bmh')
 fig = plt.figure()
@@ -113,7 +112,7 @@ anim.save("tmp/movie.gif", writer=PillowWriter(fps=1))"""
 
 
 
-def draw_candles(data):
+"""def draw_candles(data):
     short_c='#D13838'
     long_c='#63ED7C'
     matplotlib.style.use('fivethirtyeight')
@@ -133,7 +132,7 @@ def draw_candles(data):
     ax.margins(x=0)
     fig.set_size_inches(len(data)*0.2, len(data)*0.1)
     #plt.show()
-    plt.savefig("tmp/test_1.png",bbox_inches='tight')
+    plt.savefig("tmp/test_1.png",bbox_inches='tight')"""
 #draw_candles(dt[100:210])
 
 
@@ -141,7 +140,7 @@ def draw_candles(data):
 #['Solarize_Light2', '_classic_test_patch', '_mpl-gallery', '_mpl-gallery-nogrid', 'bmh', 'classic', 'dark_background', 'fast', 'fivethirtyeight', 'ggplot', 'grayscale', 'seaborn', 'seaborn-bright', 'seaborn-colorblind', 'seaborn-dark', 'seaborn-dark-palette', 'seaborn-darkgrid', 'seaborn-deep', 'seaborn-muted', 'seaborn-notebook', 'seaborn-paper', 'seaborn-pastel', 'seaborn-poster', 'seaborn-talk', 'seaborn-ticks', 'seaborn-white', 'seaborn-whitegrid', 'tableau-colorblind10']
 
 
-def draw_dis(data,p_1,id,tp,sl,pred):
+"""def draw_dis(data,p_1,id,tp,sl,pred):
     matplotlib.style.use('bmh')
     fig, ax = plt.subplots()
     data = np.insert(data,0,p_1)
@@ -156,10 +155,10 @@ def draw_dis(data,p_1,id,tp,sl,pred):
     fig.savefig('tmp/backtesting_plots/trade{}.svg'.format(id))
 
 
+"""
 
 
-
-draw_dis([10,1],1,1,2,3,1)
+#draw_dis([10,1],1,1,2,3,1)
 
 """def draw_dis(data,tp,sl):
     matplotlib.style.use('bmh')

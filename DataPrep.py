@@ -49,6 +49,7 @@ def normalize(inp):
     v = (sum(A))**(0.5)
     A = [i / v for i in inp]
     return A
+
 def relationfy(x):
     output = []
     no_order=[]
@@ -80,7 +81,7 @@ def mean_mvmnt(inputfile,columns):
 
     return [x_norm, y_norm, df]
 
-print(mean_mvmnt('market_data/AUD_CHF.csv',[4])[0][0:10])
+#print(mean_mvmnt('market_data/AUD_CHF.csv',[4])[0][0:10])
 
 
 
@@ -112,9 +113,7 @@ def mean_movement(inputfile,columns):
 
 
 
-
-
-
+#df.to_csv('market_data/EUR_USD_D_corrected.csv')
 
 
 
