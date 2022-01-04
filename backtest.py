@@ -2,16 +2,327 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 import uuid
-
+from dash import dash_table
 from DataPrep import *
 import plotly.graph_objects as go
 import dash
 import plotly
 import sys
+from strats import *
 print(plotly.__version__)
+
+
+
+
+class BACKTEST_v2():
+    def __init__(self): #Innitializing all the required variables
+        self.analytics={'orders':[],'portfolio_mvmt':[],'EURUSD':[],'EURAUD':[],'EURJPY':[],'EURGBP':[],'EURCHF':[],'reasons':[]}
+        self.portfolio = 10000
+        self.analytics['portfolio_mvmt'].append(self.portfolio)
+        self.order_size=200
+        self.leverage=50
+        self.index=0
+        self.data={
+        'EURAUD':pd.read_csv('EURmajors/EURAUD_H.csv',usecols=[1,2,3,4,5]),
+        'EURCHF':pd.read_csv('EURmajors/EURCHF_H.csv',usecols=[1,2,3,4,5]),
+        'EURGBP':pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[1,2,3,4,5]),
+        'EURJPY':pd.read_csv('EURmajors/EURJPY_H.csv',usecols=[1,2,3,4,5]),
+        'EURUSD':pd.read_csv('EURmajors/EURUSD_H.csv',usecols=[1,2,3,4,5]),
+        }
+        self.ea = self.data['EURAUD']
+        self.ec = self.data['EURCHF']
+        self.eg = self.data['EURGBP']
+        self.ej = self.data['EURJPY']
+        self.eu = self.data['EURUSD']
+        self.draw_data=0
+        self.open_orders={}
+        self.break_index=15
+
+
+    def tick(self): #tick reffers to receiving a new candle from the market
+        self.index+=1
+
+
+
+    def MakeOrder(self,symbol,type):
+        if symbol =='EURAUD':
+                buy_price = np.array(self.ea)[self.index][3]
+        elif symbol =='EURCHF':
+                buy_price = np.array(self.ec)[self.index][3]
+        elif symbol =='EURGBP':
+                buy_price = np.array(self.eg)[self.index][3]
+        elif symbol =='EURJPY':
+                buy_price = np.array(self.ej)[self.index][3]
+        elif symbol =='EURUSD':
+                buy_price = np.array(self.eu)[self.index][3]
+        else:
+            raise ValueError('Symbol "{}" is not known to BACKTEST'.format(symbol))
+
+        if type!='LONG' and type!='SHORT':
+            raise ValueError('Market execution "{}" is not known to BACKTEST'.format(type))
+
+        exe_id=self.index
+        hax=str(uuid.uuid1().hex) #generates a random hash dependent on time. Chance to overlap if there are 100000+ hashes generated at the same time, won't happen so it's fine.
+        self.open_orders[hax]=[str(hax),symbol,type,buy_price,exe_id]
+        #self.analytics[hax] = [symbol, type,buy_price, exe_id]
+        return hax
+
+
+    def SellOrder(self,hax):
+        buy_price = self.open_orders[hax][3]
+        symbol = self.open_orders[hax][1]
+        type = self.open_orders[hax][2]
+        exe_id = self.open_orders[hax][4]
+        end_id = self.index
+        if symbol == 'EURAUD':
+            sell_price= self.ea[self.index][3]
+        elif symbol == 'EURCHF':
+            sell_price = self.ec[self.index][3]
+        elif symbol == 'EURGBP':
+            sell_price = self.eg[self.index][3]
+        elif symbol == 'EURJPY':
+            sell_price = self.ej[self.index][3]
+        elif symbol == 'EURUSD':
+            sell_price = self.eu[self.index][3]
+        else:
+            raise ValueError('How the hell did "{}" end up here??'.format(symbol))
+
+        if type=='LONG':
+            profit =  (sell_price-buy_price)*self.order_size*self.leverage
+            self.portfolio+=(sell_price-buy_price)*self.order_size*self.leverage
+
+        else:
+            profit = (buy_price-sell_price)*self.order_size*self.leverage
+            self.portfolio += profit
+
+        self.analytics['portfolio_mvmt'].append(self.portfolio)
+        self.analytics['orders'].append([exe_id, end_id, symbol, type, buy_price, sell_price, self.portfolio, hax])
+        self.analytics[symbol].append([exe_id, end_id, type, buy_price, sell_price, hax])
+        del self.open_orders[hax]
+
+
+
+
+
+
+dis = BACKTEST_v2()
+for r in range(0, 16):
+    dis.tick()
+
+orders=[]
+for x in range(0,10):
+    dis.tick()
+
+
+
+
+
+    """symbols=[dis.ea[dis.index-15:dis.index+1],dis.eg[dis.index-15:dis.index+1],dis.ej[dis.index-15:dis.index+1],dis.eu[dis.index-15:dis.index+1],dis.ec[dis.index-15:dis.index+1]]
+
+    for j in range(len(symbols)):
+        data_read=symbols[j]
+        Crab = XABCD_fixed_bull(data_read, [[0.382, 0.618], [0.382, 0.886], [2.24, 3.618], [1.6175, 1.6185]])
+        Gartley = XABCD_fixed_bull(data_read, [[0.6175, 0.6185], [0.382, 0.886], [1.13, 1.618], [0.7855, 0.7865]])
+        Bat = XABCD_fixed_bull(data_read, [[0.382, 0.500], [0.382, 0.886], [1.618, 2.618], [0.8855, 0.8865]])
+        Butterfly = XABCD_fixed_bull(data_read, [[0.7855, 0.7865], [0.382, 0.886], [1.618, 2.24], [1.265, 1.272]])
+
+        if len(Crab)!=0:
+            order1 = dis.MakeOrder('EURAUD','LONG')
+            dis.analytics['reasons'].append([order1,'Crab',j])
+        if len(Butterfly)!=0:
+            order2 = dis.MakeOrder('EURAUD','LONG')
+            dis.analytics['reasons'].append([order2,'Butterfly',j])
+        if len(Bat)!=0:
+            order3 = dis.MakeOrder('EURAUD','LONG')
+            dis.analytics['reasons'].append([order3,'Bat',j])
+        if len(Gartley)!=0:
+            order4 = dis.MakeOrder('EURAUD','LONG')
+            dis.analytics['reasons'].append([order4,'Gartley',j])
+        if len(Crab)!=0:
+            order5 = dis.MakeOrder('EURAUD','LONG')
+            dis.analytics['reasons'].append([order5,'CRAB',j])
+"""
+
+
+
+
+dta=pd.DataFrame.from_dict(dis.open_orders, orient='index',columns=['Hash','Symbol', 'OrderType', 'BuyPrice', 'Index'])
+
+print(dis.analytics['portfolio_mvmt'])
+
+
+
+
+
+
+
+
+
+
+class VIZ():
+    def __init__(self):
+        self.data={
+        'EURAUD':pd.read_csv('EURmajors/EURAUD_H.csv',usecols=[1,2,3,4,5]),
+        'EURCHF':pd.read_csv('EURmajors/EURCHF_H.csv',usecols=[1,2,3,4,5]),
+        'EURGBP':pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[1,2,3,4,5]),
+        'EURJPY':pd.read_csv('EURmajors/EURJPY_H.csv',usecols=[1,2,3,4,5]),
+        'EURUSD':pd.read_csv('EURmajors/EURUSD_H.csv',usecols=[1,2,3,4,5]),
+        }
+        self.leng=600
+        self.symbol='EURGBP'
+        self.order_history=0
+
+    def draw(self):
+        app = dash.Dash(__name__)
+
+        EURUSD=     go.Candlestick(increasing_line_color='rgba(44, 104, 82, 1)', increasing_fillcolor='rgba(44, 104, 82, 1)',
+                           decreasing_line_color='rgba(115, 0, 0, 1)', decreasing_fillcolor='rgba(115, 0, 0, 1)',
+                           open=self.data['EURUSD']['Open'][0:self.leng],
+                           high=self.data['EURUSD']['High'][0:self.leng],
+                           low=self.data['EURUSD']['Low'][0:self.leng],
+                           close=self.data['EURUSD']['Close'][0:self.leng], name='EURUSD', opacity=0.8)
+        EURGBP=    go.Candlestick(increasing_line_color='rgba(44, 104, 82, 1)', increasing_fillcolor='rgba(44, 104, 82, 1)',
+                           decreasing_line_color='rgba(115, 0, 0, 1)', decreasing_fillcolor='rgba(115, 0, 0, 1)',
+                           open=self.data['EURGBP']['Open'][0:self.leng],
+                           high=self.data['EURGBP']['High'][0:self.leng],
+                           low=self.data['EURGBP']['Low'][0:self.leng],
+                           close=self.data['EURGBP']['Close'][0:self.leng], name='EURGBP', opacity=0.8)
+        EURJPY=    go.Candlestick(increasing_line_color='rgba(44, 104, 82, 1)', increasing_fillcolor='rgba(44, 104, 82, 1)',
+                           decreasing_line_color='rgba(115, 0, 0, 1)', decreasing_fillcolor='rgba(115, 0, 0, 1)',
+                           open=self.data['EURJPY']['Open'][0:self.leng],
+                           high=self.data['EURJPY']['High'][0:self.leng],
+                           low=self.data['EURJPY']['Low'][0:self.leng],
+                           close=self.data['EURJPY']['Close'][0:self.leng], name='EURJPY', opacity=0.8)
+        EURCHF=    go.Candlestick(increasing_line_color='rgba(44, 104, 82, 1)', increasing_fillcolor='rgba(44, 104, 82, 1)',
+                           decreasing_line_color='rgba(115, 0, 0, 1)', decreasing_fillcolor='rgba(115, 0, 0, 1)',
+                           open=self.data['EURCHF']['Open'][0:self.leng],
+                           high=self.data['EURCHF']['High'][0:self.leng],
+                           low=self.data['EURCHF']['Low'][0:self.leng],
+                           close=self.data['EURCHF']['Close'][0:self.leng], name='EURCHF', opacity=0.8)
+        EURAUD=    go.Candlestick(increasing_line_color='rgba(44, 104, 82, 1)', increasing_fillcolor='rgba(44, 104, 82, 1)',
+                           decreasing_line_color='rgba(115, 0, 0, 1)', decreasing_fillcolor='rgba(115, 0, 0, 1)',
+                           open=self.data['EURAUD']['Open'][0:self.leng],
+                           high=self.data['EURAUD']['High'][0:self.leng],
+                           low=self.data['EURAUD']['Low'][0:self.leng],
+                           close=self.data['EURAUD']['Close'][0:self.leng], name='EURAUD', opacity=0.8)
+
+
+        fig_ALL = go.Figure(data=[EURUSD,EURGBP,EURJPY,EURCHF,EURAUD],layout_title_text='Trades overview')
+        fig_ALL.update_layout(xaxis_rangeslider_visible=False,template='ggplot2')
+
+
+        fig_EURUSD = go.Figure(data=[EURUSD])
+        fig_EURUSD.update_layout(xaxis_rangeslider_visible=False, template='ggplot2')
+
+        fig_EURGBP = go.Figure(data=[EURGBP])
+        fig_EURGBP.update_layout(xaxis_rangeslider_visible=False, template='ggplot2')
+
+        fig_EURJPY = go.Figure(data=[EURJPY])
+        fig_EURJPY.update_layout(xaxis_rangeslider_visible=False, template='ggplot2')
+
+        fig_EURCHF = go.Figure(data=[EURCHF])
+        fig_EURCHF.update_layout(xaxis_rangeslider_visible=False, template='ggplot2')
+
+        fig_EURAUD = go.Figure(data=[EURAUD])
+        fig_EURAUD.update_layout(xaxis_rangeslider_visible=False, template='ggplot2')
+
+
+        portfolio=[1000,1040,1200,1300,1020,1031,1029,990,960,1200,1300,1231,1000,1040,1200,1300,1020,1031,1029,990,960,1200,1300,1231]
+
+        fig_port =go.Figure(data=[go.Scatter(x=np.arange(0, len(portfolio)), y=portfolio, )])
+        fig_port.update_layout(hovermode="x",hoverlabel=dict(bgcolor="#636EFA", font_color='white', font_size=16, font_family="Arial"),template='ggplot2')
+        fig_acc = go.Figure(data=[go.Pie(values=[42, 28, 30], labels=['Succ', 'Fail', 'Random'], hole=0.4,marker_colors=['#4824BA','#BB4C71','#FFCFE1'])])
+        fig_acc.update_traces(hoverinfo='label',hoverlabel=dict(font_size=26, font_family="Arial"))
+        fig_acc.update_layout(annotations=[dict(text=100, x=0.5, y=0.5, font_size=50, showarrow=False)])
+
+        #fig_acc.update_layout(hoverlabel=dict(bgcolor="white", font_size=16, font_family="Arial"),color_discrete_sequence=plotly.colors.sequential.RdBu)#accuracy of the bot in total also in regards to single currency
+        app.layout = dash.html.Div([
+                dash.html.H1(children='BACKTESTING SUMMARY', style={'textAlign': 'center', 'font-size':'40px','margin-bottom': '20px'}),
+                dash.dcc.Dropdown(id='options',
+                         options=[  {'label': 'ALL', 'value': 'ALL'},
+                                    {'label': 'EURUSD', 'value': 'EURUSD'},
+                                    {'label': 'EURGBP', 'value': 'EURGBP'},
+                                    {'label': 'EURJPY', 'value': 'EURJPY'},
+                                    {'label': 'EURCHF', 'value': 'EURCHF'},
+                                    {'label': 'EURAUD', 'value': 'EURAUD'},
+                                  ],value='ALL',style={'width':'20vw','position':'fixed'}
+                         ),
+                dash.html.Div([
+                    dash.html.Div([
+                        #dash.html.H4(children='Portfolio Evolution',style={'textAlign': 'center', 'font-size': '25px', 'font-style':'italic','background-color':'red'}),
+                        dash.dcc.Graph(id="portfolio",figure=fig_port, style={'height': '60vh','width':'60vw'}),
+                    ], style={'display':'flex','flex-direction': 'column','justify-content':'flex-start','align-items':'space-around','box-shadow':'rgba(100, 100, 111, 0.2) 0px 7px 29px 0px'}),
+                    dash.dcc.Graph(id="accuracy", figure=fig_acc, style={'height': '60vh','padding':'0px','border-radius':'10px','box-shadow':'rgba(100, 100, 111, 0.2) 0px 7px 29px 0px'}),
+                ], id='top_row',style={'display':'flex','flex-direction': 'row','justify-content':'space-around','align-items':'center','margin-bottom': '25px',}),
+
+                dash.html.Div([
+                    dash.dcc.Graph(id='F_O_V', figure=fig_ALL,style={ 'width': '100%', 'height': '85vh'}),
+                    dash_table.DataTable(
+                    id='shit',
+                    columns=([{'name':'Hash', 'id':'Hash','type':'any'},
+                              {'name':'Symbol', 'id':'Symbol','type':'any'},
+                              {'name':'OrderType', 'id':'OrderType','type':'any'},
+                              {'name':'BuyPrice', 'id':'BuyPrice','type':'any'},
+                              {'name':'Index', 'id':'Index','type':'any'}]),
+                    data=self.order_history.to_dict('records'),
+                    editable=False)
+                ], style={'fontsize': '30px', 'margin-bottom': '5px', 'width': '95.5vw','box-shadow': 'rgba(100, 100, 111, 0.2) 0px 7px 29px 0px', 'align-self': 'center'}),
+        ],style={'display':'flex','flex-direction': 'column','justify-content':'flex-start','align-items':'space-around','padding':'0px','margin':'0px'})
+
+        @app.callback(dash.Output('F_O_V', 'figure'),
+                      [dash.Input('options', 'value')])
+        def update_figure(value):
+            if value == 'EURUSD':
+                return fig_EURUSD
+            if value == 'EURGBP':
+                return fig_EURGBP
+            if value == 'EURJPY':
+                return fig_EURJPY
+            if value == 'EURCHF':
+                return fig_EURCHF
+            if value == 'EURAUD':
+                return fig_EURAUD
+            if value == 'ALL':
+                return fig_ALL
+
+
+
+        if __name__ == '__main__':
+                app.run_server(debug=True)
+
+
+
+egg = VIZ()
+egg.order_history=dta
+
+egg.draw()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+
+
 volume_ref=np.array(pd.read_csv('market_data/AUD_CHF.csv',usecols=[5]))
 candles = np.array(pd.read_csv('market_data/AUD_CHF.csv',usecols=[1,2,3,4])[0:10])
-"""
+
 def pressure(refrence_volume,current_volume,candles):
     pressure_level=0
     candle_var=[abs(candles[i][0]-candles[i][4]) for i in range(len(candles))]
@@ -27,7 +338,7 @@ def pressure(refrence_volume,current_volume,candles):
 x,y=50,100
 print(pressure(volume_ref[x:y],volume_ref[y:y+10],candles))
 
-"""
+
 print(sys.version)
 class BACKTEST():
     def __init__(self): #Innitializing all the required variables
@@ -178,7 +489,7 @@ class BACKTEST():
         if __name__ == '__main__':
             app.run_server(debug=True)
 
-
+"""
 
 """" +--------EXAMPLE--------+
 nn=BACKTEST()
@@ -230,103 +541,3 @@ nn.draw_data=pd.read_csv('market_data/AUD_CHF.csv',usecols=[1,2,3,4])
 nn.visualize()
 """
 
-
-
-
-
-class BACKTEST_multi_symbol():
-    def __init__(self): #Innitializing all the required variables
-        self.analytics={'orders':[],'other things?':[]}
-        #self.symbols=['EURAUD','EURCHF','EURGBP','EURJPY','EURUSD']
-        self.portfolio = 10000
-        self.order_size=200
-        self.leverage=50
-        self.index=0
-        self.data={'EURAUD':np.array(pd.read_csv('EURmajors/EURAUD_H.csv',usecols=[1,2,3,4,5])),
-                   'EURCHF':np.array(pd.read_csv('EURmajors/EURCHF_H.csv',usecols=[1,2,3,4,5])),
-                   'EURGBP':np.array(pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[1,2,3,4,5])),
-                   'EURJPY':np.array(pd.read_csv('EURmajors/EURJPY_H.csv',usecols=[1,2,3,4,5])),
-                   'EURUSD':np.array(pd.read_csv('EURmajors/EURUSD_H.csv',usecols=[1,2,3,4,5])),
-                   }
-        self.ea=0
-        self.ec=0
-        self.eg=0
-        self.ej=0
-        self.eu=0
-        self.draw_data=0
-        self.open_orders={}
-        self.break_index=15
-
-
-    def tick(self): #tick reffers to receiving a new candle from the market
-        self.index+=1
-        self.ea = self.data['EURAUD'][self.index]
-        self.ec = self.data['EURCHF'][self.index]
-        self.eg = self.data['EURGBP'][self.index]
-        self.ej = self.data['EURJPY'][self.index]
-        self.eu = self.data['EURUSD'][self.index]
-
-
-    def MakeOrder(self,symbol,type):
-        if symbol =='EURAUD':
-                buy_price = self.ea[3]
-        elif symbol =='EURCHF':
-                buy_price = self.ec[3]
-        elif symbol =='EURGBP':
-                buy_price = self.eg[3]
-        elif symbol =='EURJPY':
-                buy_price = self.ej[3]
-        elif symbol =='EURUSD':
-                buy_price = self.eu[3]
-        else:
-            raise ValueError('Symbol "{}" is not known to BACKTEST'.format(symbol))
-
-        if type!='LONG' and type!='SHORT':
-            raise ValueError('Market execution "{}" is not known to BACKTEST'.format(type))
-
-        exe_id=self.index
-        hax=str(uuid.uuid1().hex) #generates a random hash dependent on time. Chance to overlap if there are 100000+ hashes generated at the same time, won't happen so it's fine.
-        self.open_orders[hax]=[symbol,type,buy_price,exe_id]
-        #self.analytics[hax] = [symbol, type,buy_price, exe_id]
-        return hax
-
-
-    def SellOrder(self,hax):
-        buy_price = self.open_orders[hax][2]
-        symbol = self.open_orders[hax][0]
-        type = self.open_orders[hax][1]
-        exe_id = self.open_orders[hax][3]
-        end_id = self.index
-        if symbol == 'EURAUD':
-            sell_price= self.ea[3]
-        elif symbol == 'EURCHF':
-            sell_price = self.ec[3]
-        elif symbol == 'EURGBP':
-            sell_price = self.eg[3]
-        elif symbol == 'EURJPY':
-            sell_price = self.ej[3]
-        elif symbol == 'EURUSD':
-            sell_price = self.eu[3]
-        else:
-            raise ValueError('How the hell did "{}" end up here??'.format(symbol))
-
-        if type=='LONG':
-            self.portfolio+=(sell_price-buy_price)*self.order_size*self.leverage
-
-        else:
-            self.portfolio += (buy_price-sell_price)*self.order_size*self.leverage
-
-        self.analytics['orders'].append([exe_id, end_id, symbol, type, buy_price, sell_price, self.portfolio, hax])
-        del self.open_orders[hax]
-
-dis = BACKTEST_multi_symbol()
-dis.tick()
-order1 = dis.MakeOrder('EURAUD','LONG')
-order2 = dis.MakeOrder('EURUSD','LONG')
-dis.tick()
-dis.tick()
-dis.SellOrder(order2)
-
-order3 = dis.MakeOrder('EURJPY','LONG')
-print(dis.open_orders)
-print(dis.analytics['orders'])
