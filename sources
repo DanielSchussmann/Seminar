@@ -9,3 +9,6 @@ http://www.vision.jhu.edu/teaching/learning/deeplearning18/assets/Cybenko-89.pdf
 http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
 
 https://keras.io/guides/sequential_model/
+
+
+batchsizes: https://stackoverflow.com/questions/35050753/how-big-should-batch-size-and-number-of-epochs-be-when-fitting-a-model-in-keras#:~:text=I%20got%20best%20results%20with,b%2Fw%2050%20to%20100.
