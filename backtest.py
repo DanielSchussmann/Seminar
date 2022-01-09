@@ -184,21 +184,48 @@ class BACKTEST_v3():
                 app.run_server(debug=True)
 
 
-eragon = BACKTEST_v3()
-eragon.tick()
-order = eragon.MakeOrder('EURUSD','SHORT')
-eragon.tick()
-order2 = eragon.MakeOrder('EURJPY','LONG')
-eragon.tick()
-eragon.SellOrder(order)
-eragon.tick()
-eragon.tick()
-eragon.tick()
-eragon.SellOrder(order2)
-eragon.init_layout()
 
-eragon.draw()
+dis = BACKTEST_v3()
 
+
+[dis.tick() for x in range(0,30)]
+standard_deviation=lambda data: np.sum(((data-(np.mean(data)))**2)/len(data))**0.5
+my_orders=[]
+
+
+for j in range(30,global_deli-30):
+
+    if j%20==0:
+
+#Check for inn
+        for s in range(0,len(dis.symbols)):
+            cur_candel = np.array(dis.data[dis.symbols[s]])[dis.index]
+            cur_close = cur_candel[3]
+            rng = np.array(dis.data[dis.symbols[s]])[dis.index-20:dis.index]
+            cur_mean = np.mean(rng)
+            cur_deviation = standard_deviation(rng)
+            #print(rng,cur_deviation,cur_mean)
+            #print(symbols[s][1],cur_candel,cur_deviation,cur_mean,dis.index)
+            if  cur_candel.any() < cur_mean - cur_deviation:
+                xxx = dis.MakeOrder(dis.symbols[s], 'SHORT')
+                my_orders.append(xxx)
+            if cur_mean + cur_deviation < cur_candel.any():
+                xxx = dis.MakeOrder(dis.symbols[s], 'LONG')
+                my_orders.append(xxx)
+
+
+#check for exit condition
+    o = 0
+    while o<len(my_orders):
+        #print(dis.open_orders[my_orders[o]])
+        if dis.open_orders[my_orders[o]][4] + 5 < dis.index:
+            dis.SellOrder(my_orders[o])
+            my_orders.pop(o)
+        o += 1
+    dis.tick()
+"""
+dis.init_layout()
+dis.draw()""""""
 #####################################--------------------------------------------------------------------------------------
 
 
@@ -208,7 +235,7 @@ eragon.draw()
 
 
 
-
+"""
 
 
 
@@ -477,7 +504,7 @@ for j in range(30,global_deli-30):
         o += 1
     dis.tick()
 
-
+"""
 
 #vis = VIZ()
 #vis.analytics = dis.analytics
