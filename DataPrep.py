@@ -111,18 +111,75 @@ def mean_movement(inputfile,columns):
 
 #print(mean_movement('market_data/AUD_CHF.csv',[4]))
 
+import pickle
+
+def next_candle(data,minus):
+    picker = np.random.randint(minus + 1, len(data)-1)
+    imp_value = data[picker][3]
+    hist_data = np.array(normalize(data[picker - minus:picker] / imp_value)).reshape(minus*4, )
+    deNormFaktor=10
+    epi_data = np.array(normalize(data[picker+1] / imp_value))
+    return [hist_data.tolist(), epi_data.tolist(),deNormFaktor]
+
+ting=next_candle(np.array(pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[1,2,3,4])),10)
+
+print(ting)
+data={'x':[],'y':[]}
+for x in range(0,1000):
+    pciked=next_candle(np.array(pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[1,2,3,4])),10)
+    data['x'].append(pciked[0])
+    data['y'].append(pciked[1])
+    pciked = next_candle(np.array(pd.read_csv('EURmajors/EURUSD_H.csv', usecols=[1,2,3,4])), 10)
+    data['x'].append(pciked[0])
+    data['y'].append(pciked[1])
+    pciked = next_candle(np.array(pd.read_csv('EURmajors/EURAUD_H.csv', usecols=[1,2,3,4])), 10)
+    data['x'].append(pciked[0])
+    data['y'].append(pciked[1])
+
+with open('nn.pkl', 'wb') as f:
+    pickle.dump(data, f)
+
+
 
 
 #df.to_csv('market_data/EUR_USD_D_corrected.csv')
+def long_short_ident(data,minus,plus):
+    picker = np.random.randint(minus+1,len(data)-plus-1)
+    imp_value = data[picker]
+    hist_data = np.array(normalize(data[picker-minus:picker]/imp_value)).reshape(minus,)
+    bigger=np.array(np.where(imp_value<np.array(data[picker+1:picker+plus+1]))[0])
+    smaller=np.array(np.where(imp_value>np.array(data[picker+1:picker+plus+1]))[0])
+    #print(smaller.size/plus,bigger.size/plus)
+    if bigger.size < smaller.size :
+        epi_data=[1.0,0.0]#DO NOTHING
+
+    elif bigger.size > smaller.size:
+        epi_data = [0.0, 1.0]
+    else:
+        epi_data=[0.0,0.0]
+    #epi_data=[bigger.size/plus,smaller.size/plus]
+
+    #print(imp_value,np.array(data[picker + 1:picker + plus + 1]), np.array(np.where(imp_value < np.array(data[picker + 1:picker + plus + 1]))[0]))
+    return [imp_value, hist_data.tolist(), epi_data]
+
+"""
+data={'x':[],'y':[]}
+for x in range(0,500):
+    pciked=long_short_ident(np.array(pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[3])),10,6)
+    data['x'].append(pciked[1])
+    data['y'].append(pciked[2])
+    pciked = long_short_ident(np.array(pd.read_csv('EURmajors/EURUSD_H.csv', usecols=[3])), 10, 6)
+    data['x'].append(pciked[1])
+    data['y'].append(pciked[2])
+    pciked = long_short_ident(np.array(pd.read_csv('EURmajors/EURAUD_H.csv', usecols=[3])), 10, 6)
+    data['x'].append(pciked[1])
+    data['y'].append(pciked[2])
+
+with open('nn.pkl', 'wb') as f:
+    pickle.dump(data, f)
 
 
-
-
-
-
-
-
-
+"""
 
 
 

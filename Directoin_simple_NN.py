@@ -20,7 +20,7 @@ x_test=np.array(mean_mvmnt(data_testing,[4])[0])
 y_test=np.array(mean_mvmnt(data_testing,[4])[1])
 #draw_test=mean_mvmnt(data_testing,[4])[2]
 
-
+print(x_val[0])
 
 
 inputs = tf.keras.Input(shape=(45,), name="digits")
