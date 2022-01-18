@@ -4,7 +4,8 @@ import tensorflow as tf
 import keras
 import matplotlib.pyplot as plt
 from DataPrep import *
-
+#import sklearn
+from sklearn.preprocessing import OneHotEncoder
 data_training="market_data/AUD_USD.csv"
 data_testing="market_data/AUD_CHF.csv"
 
@@ -66,10 +67,10 @@ for x in range(0,3200):
 #data = [[np.array(pick_and_relate(np.array(pd.read_csv('EURmajors/EURUSD_H.csv',usecols=[3])),10,4)[1]), for x in range(0,100)]
 
 print(data['y'])
-"""
+
 with open('nn.pkl', 'rb') as f:
     data = pickle.load(f)
-
+"""
 #print('231ß38',data['x'][0])
 
 class NeuralNetwork():
@@ -80,9 +81,12 @@ class NeuralNetwork():
         self.metrics = [tf.metrics.BinaryAccuracy(name='accuracy')]
         self.x_in = []
         self.y_in = []
-        self.batch_size = 25
+        self.batch_size =25
         self.epochs = 50
+        self.history =0
         self.model = tf.keras.Sequential()
+        self.kernel_init = tf.keras.initializers.RandomNormal(stddev=0.01)
+        self.bias_init = 'zeros'
 
     def add_layer(self,Type,Shape,Activation,Name,):
         if Type == 'Input':
@@ -90,19 +94,23 @@ class NeuralNetwork():
         elif Type == 'Dropout':
             self.model.add(tf.keras.layers.Dropout(Activation, input_shape=(Shape,), name=Name))
         elif Type == 'Hidden':
-            self.model.add(tf.keras.layers.Dense(Shape, activation=Activation, name=Name,use_bias=True,bias_initializer="zeros"))
+            self.model.add(tf.keras.layers.Dense(Shape, activation=Activation, name=Name, kernel_initializer = self.kernel_init, use_bias=True, bias_initializer=self.bias_init ))
+
+
+        elif Type == 'Output':
+            if Activation == None:
+                self.model.add(tf.keras.layers.Dense(Shape, name=Name, kernel_initializer = self.kernel_init, use_bias=True, bias_initializer="zeros" ))
+            else:
+                self.model.add(tf.keras.layers.Dense(Shape, activation=Activation, name=Name , kernel_initializer = self.kernel_init, use_bias=True, bias_initializer="zeros" ))
+        else:
+            raise ValueError('Type {} is unknown to class'.format(Type))
+
+        """
         elif Type == 'LSTM':
             self.model.add(tf.keras.layers.LSTM(Shape,activation=Activation,name=Name,use_bias=True,bias_initializer="zeros"))
         elif Type == 'GRU':
             self.model.add(tf.keras.layers.GRU(Shape,activation=Activation,name=Name))
-        elif Type == 'Output':
-            if Activation == None:
-                self.model.add(tf.keras.layers.Dense(Shape, name=Name))
-            else:
-                self.model.add(tf.keras.layers.Dense(Shape, activation=Activation, name=Name))
-        else:
-            raise ValueError('Type {} is unknown to class'.format(Type))
-
+        """
     def Compile(self,SHOW):
         self.model.build()
         self.model.compile(loss = self.loss, optimizer = self.optimizer, metrics = self.metrics)
@@ -117,14 +125,14 @@ class NeuralNetwork():
 
 
     def prep_data(self):
-        self.x_train,self.x_val = np.split(np.array(self.x_in, dtype=float), 2 )
-        self.y_train, self.y_val = np.split(np.array(self.y_in, dtype=float), 2)
+        self.x_train,self.x_val = np.split(np.array(self.x_in, dtype='float32'), 2 )
+        self.y_train, self.y_val = np.split(np.array(self.y_in), 2)
         #print(self.x_val[0])
         #if len(self.x_in) != len(self.y_in) or self.x_train.size != self.x_val.size or self.y_train.size != self.y_val.size or self.x_train.size != self.y_train.size:
            # raise AttributeError('Oops training data does not really work')
 
     def Fit(self):
-        fit=self.history= self.model.fit(
+        fit= self.model.fit(
         self.x_train, self.y_train,
         batch_size = self.batch_size,
         epochs = self.epochs,
@@ -159,6 +167,57 @@ class NeuralNetwork():
 
 #optimization Network
 
+def data_prep_10(input, am, backward, forward):
+        picks = np.random.randint(0 + backward, len(input) - forward, size=am)
+        data = {'x':[],'y':[]}
+
+
+        [data['x'].append( normalize(np.array( input[picks[i] - backward: picks[i]] ).reshape((backward,)) )  )   for i in range(len(picks))]
+        [data['y'].append(  ['LONG'] if np.mean(input[picks[i] + 1: picks[i] + forward + 1]) > input[picks[i]] else ['SHORT'] ) for i in range(len(picks))]
+        enc= OneHotEncoder(sparse=False)
+        data['y'] = enc.fit_transform(data['y'])
+        return data
+
+
+data = data_prep_10(np.array(pd.read_csv('EURmajors/EURGBP_H.csv', usecols=[4])), 8000, 30, 5)
+
+
+
+test = NeuralNetwork()
+#test.metrics=[tf.metrics.BinaryAccuracy(name='bin_accuracy')]
+#test.loss = tf.keras.losses.CategoricalCrossentropy()
+test.x_in=data['x']
+test.y_in=data['y']
+print(data['y'])
+
+test.kernel_init= tf.keras.initializers.RandomNormal(stddev=0.01)
+test.bias_init = tf.keras.initializers.RandomUniform(minval=0.01, maxval=0.03)
+test.loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False,  name='crossentropy')
+test.metrics=['accuracy']
+test.add_layer('Dropout',30,0.2,'input')
+test.add_layer('Hidden',32,'relu','Hidden_1')
+test.add_layer('Hidden',32,'relu','Hidden_2')
+#test.model.add(tf.keras.layers.GRU(20, input_shape=(10,),activation='relu'  ))
+test.add_layer('Output',2,'sigmoid','out')
+#print(test.model.weights)
+
+#print(test.history['accuracy'])
+
+test.Compile('sum')
+test.prep_data()
+
+
+test.Fit()
+test.Visualize()
+
+
+test_data =data_prep_10( np.array(pd.read_csv('EURmajors/EURGBP_H.csv', usecols=[4])), 32, 30, 5)
+
+#print(np.array(test_data['x']).shape)
+#results = test.model.predict_classes(np.array(test_data['x']))
+y_prob = test.model.predict(test_data)
+
+print(y_prob)
 
 
 
@@ -166,16 +225,7 @@ class NeuralNetwork():
 
 
 
-
-
-
-
-
-
-
-
-
-
+"""
 plt.title('Loss')
 test = NeuralNetwork()
 test.metrics=[tf.metrics.BinaryAccuracy(name='accuracy')]
@@ -208,5 +258,4 @@ test.Save()
 results = test.model.predict(test_data['x'])
 
 print(results)
-
-
+"""

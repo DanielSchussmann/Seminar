@@ -15,22 +15,22 @@ app = dash.Dash(__name__)
 server = app.server
 app.title = "Backtest"
 
-global_deli=3000
+global_deli=5000
 
 load_data={
         'EURAUD':pd.read_csv('EURmajors/EURAUD_H.csv',usecols=[1,2,3,4])[0:global_deli],
         'EURCHF':pd.read_csv('EURmajors/EURCHF_H.csv',usecols=[1,2,3,4])[0:global_deli],
         'EURGBP':pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[1,2,3,4])[0:global_deli],
-        'EURJPY':pd.read_csv('EURmajors/EURJPY_H.csv',usecols=[1,2,3,4])[0:global_deli],
-        'EURUSD':pd.read_csv('EURmajors/EURUSD_H.csv',usecols=[1,2,3,4])[0:global_deli],}
+        'EURUSD':pd.read_csv('EURmajors/EURUSD_H.csv',usecols=[1,2,3,4])[0:global_deli],
+        'EURJPY':pd.read_csv('EURmajors/EURJPY_H.csv',usecols=[1,2,3,4])[0:global_deli],}
 
 
 
 class BACKTEST_v3():
     def __init__(self): #Innitializing all the required variables
-        self.analytics={'orders':[],'portfolio_mvmt':[],'EURUSD':[],'EURAUD':[],'EURJPY':[],'EURGBP':[],'EURCHF':[],'reasons':[]}
+        self.analytics={'orders':[],'portfolio_mvmt': {'ALL':[],'EURUSD':[],'EURAUD':[],'EURJPY':[],'EURGBP':[],'EURCHF':[],'reasons':[]},'EURUSD':[],'EURAUD':[],'EURJPY':[],'EURGBP':[],'EURCHF':[],'reasons':[]}
         self.portfolio = 10000
-        self.analytics['portfolio_mvmt'].append(self.portfolio)
+        self.analytics['portfolio_mvmt']['ALL'].append(self.portfolio)
         self.order_size=200
         self.leverage=50
         self.index=0
@@ -79,7 +79,8 @@ class BACKTEST_v3():
             profit = (buy_price-sell_price) * self.order_size * self.leverage
             self.portfolio += profit
             self.analytics['orders'].append([hax, exe_id, end_id, symbol, type, buy_price, sell_price, profit,note])
-        self.analytics['portfolio_mvmt'].append(self.portfolio)
+        self.analytics['portfolio_mvmt'][symbol].append(self.portfolio)
+        self.analytics['portfolio_mvmt']['ALL'].append(self.portfolio)
 
         self.analytics[symbol].append([hax, exe_id, end_id, symbol, type, buy_price, sell_price, profit, note])
         del self.open_orders[hax]
@@ -102,10 +103,6 @@ class BACKTEST_v3():
                         ay=30 if self.analytics[X][i][4]=='LONG' else -30 ,
                         font_color='white',
                         bgcolor='#057FA6' if self.analytics[X][i][4]=='LONG' else 'coral') for i in range(len(self.analytics[X]))]
-
-    #def internal_plot(self,PLOT,symbol,plot_type):
-     #   self.addon[symbol][plot_type].append(PLOT)
-
 
 
     def _candel_plot(self,X):
@@ -182,12 +179,12 @@ class BACKTEST_v3():
                                     layout_title_text='Full Chart and Transaction list')
                 fig_ALL.update_layout(xaxis_rangeslider_visible=False, template='simple_white')
 
-                fig_port = go.Figure(data=[go.Scatter(x=np.arange(0, len(self.analytics['portfolio_mvmt'])),
-                                                      y=self.analytics['portfolio_mvmt'])],
+                fig_port = go.Figure(data=[go.Scatter(x=np.arange(0, len(self.analytics['portfolio_mvmt'][value])),
+                                                      y=self.analytics['portfolio_mvmt'][value])],
                                      layout_title_text='Portfolio Evolution')
                 fig_port.update_layout(template='simple_white', hovermode="x",
                                        hoverlabel=dict(bgcolor="#636EFA", font_color='white', font_size=16,
-                                                       font_family="Arial"), yaxis_tickprefix='$',
+                                                       font_family="Arial"), yaxis_tickprefix='€',
                                        yaxis_tickformat=',.2f')
 
                 fig_acc = go.Figure(data=[go.Pie(
@@ -208,12 +205,12 @@ class BACKTEST_v3():
                 fig_out.update_layout(xaxis_rangeslider_visible=False, template='simple_white',
                                       annotations=self._annotations(value))
 
-                fig_port = go.Figure(data=[go.Scatter(x=np.arange(0, len(self.analytics['portfolio_mvmt'])),
-                                                      y=self.analytics['portfolio_mvmt'])],
+                fig_port = go.Figure(data=[go.Scatter(x=np.arange(0, len(self.analytics['portfolio_mvmt'][value])),
+                                                      y=self.analytics['portfolio_mvmt'][value])],
                                      layout_title_text='Portfolio Evolution')
                 fig_port.update_layout(template='simple_white', hovermode="x",
                                        hoverlabel=dict(bgcolor="#636EFA", font_color='white', font_size=16,
-                                                       font_family="Arial"), yaxis_tickprefix='$',
+                                                       font_family="Arial"), yaxis_tickprefix='€',
                                        yaxis_tickformat=',.2f')
 
                 fig_acc = go.Figure(data=[go.Pie(
@@ -232,6 +229,54 @@ class BACKTEST_v3():
             app.run_server(debug=True)
 
 
+
+standard_deviation=lambda data: np.sum(((data-(np.mean(data)))**2)/len(data))**0.5 #usage example: st_de_rolling([2,4,4,4,5,5,7,9]) => 2
+"""
+d=np.array([np.random.rand(),np.random.rand()],dtype=float)
+decision = np.array((standard_deviation( x )*100000,d), dtype=object)
+"""
+
+rando = BACKTEST_v3()
+[rando.tick() for x in range(0,30)]
+my_orders=[]
+
+#pred = tf.keras.models.load_model('Neural_Networks/promise_1')
+for x in range(0,4910):
+    if x %15 ==0:
+        for f in range(len(rando.symbols)-1):
+            prediction_data = normalize(rando.data[rando.symbols[f]]['Close'][x-10:x])
+            d = np.array([np.random.rand(), np.random.rand()], dtype=float)
+            std_break=standard_deviation(prediction_data)
+            decision = np.array((std_break, d), dtype=object)
+
+            if d[0] > d[1] and std_break :
+                otype='LONG'
+                xxx = rando.MakeOrder(rando.symbols[f], 'LONG', str(decision))
+                my_orders.append(xxx)
+
+
+            elif d[0] < d[1] and std_break  :
+                otype = 'SHORT'
+                xxx = rando.MakeOrder(rando.symbols[f], 'SHORT',str(decision))
+                my_orders.append(xxx)
+
+
+
+
+    o = 0
+    while o<len(my_orders):
+        #print(dis.open_orders[my_orders[o]])
+        if rando.open_orders[my_orders[o]][4] + 5 < rando.index:
+            rando.SellOrder(my_orders[o])
+            my_orders.pop(o)
+        o += 1
+    rando.tick()
+#print(dis.analytics)
+
+#dis.init_layout()
+rando.draw()
+with open('Similarity.json', 'w', encoding='utf-8') as f:
+    json.dump(rando.analytics, f, ensure_ascii=False, indent=4)
 
 
 
@@ -297,7 +342,7 @@ harm.draw()
 
 
 
-
+"""
 
 
 dis = BACKTEST_v3()
@@ -346,7 +391,7 @@ for x in range(0,1000):
 with open('Example1.json', 'w', encoding='utf-8') as f:
     json.dump(dis.analytics, f, ensure_ascii=False, indent=4)
 
-
+"""
 ########## ############################--------------------------------------------------------------------------------------
 
 

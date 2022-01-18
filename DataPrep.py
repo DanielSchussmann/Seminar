@@ -109,8 +109,28 @@ def mean_movement(inputfile,columns):
 
 
 
-#print(mean_movement('market_data/AUD_CHF.csv',[4]))
 
+
+def data_prep_10(input,am,backward,forward,):
+        picks = np.random.randint(0+backward,len(input)-forward,size=am)
+        data = [ [input[picks[i]-backward : picks[i]], 1 if np.mean(input[picks[i]+1 : picks[i]+forward+1])> input[picks[i]] else -1 ] for i in range(len(picks)) ]
+
+
+        return data
+
+
+print(data_prep_10( np.array(pd.read_csv('EURmajors/EURGBP_H.csv',usecols=[4])),100,10,5))
+
+
+
+
+
+
+
+
+
+#print(mean_movement('market_data/AUD_CHF.csv',[4]))
+"""
 import pickle
 
 def next_candle(data,minus):
@@ -137,7 +157,12 @@ for x in range(0,1000):
     data['y'].append(pciked[1])
 
 with open('nn.pkl', 'wb') as f:
-    pickle.dump(data, f)
+    pickle.dump(data, f)"""
+
+
+
+
+
 
 
 
@@ -180,6 +205,10 @@ with open('nn.pkl', 'wb') as f:
 
 
 """
+
+
+
+
 
 
 
